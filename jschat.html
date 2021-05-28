@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>JSChat</title>
+    </head>
+    <body>
+        <script type="application/javascript">
+            /**
+             * @name jschat
+             * @version 1.0
+             * @since 2021-02-21
+             * @author PingMaster99
+             * @description JavaScript chat with a message server hosted on the web
+             **/
+
+            // Constants
+            const language =  window.navigator.language
+            const sender_name = "HackChat"
+            const background_color = "black"
+            const text_color = "white"
+            const sender_color = "lime"
+            const date_color = "lightblue"
+            const input_color = "black"
+            const scroll_send = true
+            const website_keywords = ['http://', 'https://', '.com', '.org', '.net', '.gov', '.edu', '.xyz', 'www.']
+            const image_types = ['png', 'jpg', 'gif', 'mp4', 'mov', 'svg', 'jpeg']
+
+            // Variables
+            let send_text = "send"
+            let message_count = 0
+            let fetch_interval = 500
+
+            // Browser language
+            if (language.substr(0, 2) === "es") {
+                send_text = "enviar"
+            }
+
+            // Background and message redaction module
+            document.body.style.display = "flex"
+            document.body.style.flexDirection = "column"
+            document.body.style.backgroundImage = "url('http://cdn.lowgif.com/small/382389c6d5351984-.gif')"
+
+            const message_container = document.createElement('div')
+            message_container.style.width = "100%"
+            message_container.style.height = "120px"
+            message_container.style.display = "flex"
+            message_container.style.alignItems = "center"
+            message_container.style.position = "fixed"
+            message_container.style.backgroundColor = background_color
+            message_container.style.bottom = "0px"
+            message_container.style.left = "0px"
+            document.body.append(message_container)
+
+            const character_count = document.createElement('p')
+            character_count.textContent = "0/140"
+            character_count.style.color = text_color
+            character_count.style.marginLeft = "3%"
+            message_container.append(character_count)
+
+            const input = document.createElement('textarea')
+            input.style.backgroundColor = input_color
+            input.style.width = "40%"
+            input.style.height = "30%"
+            input.style.border = "none"
+            input.style.marginLeft = "20px"
+            input.style.borderBottom = "2px solid " + sender_color
+            input.style.textDecorationColor = sender_color
+            input.style.color = text_color
+            input.style.boxSizing = "border-box"
+            input.style.resize = "none"
+            message_container.append(input)
+
+            const button = document.createElement('button')
+            button.append(send_text)
+            button.style.background = sender_color
+            button.style.border = "none"
+            button.style.height = "25%"
+            button.style.width = "10%"
+            button.style.marginLeft = "3%"
+            button.style.borderRadius = "5px"
+            message_container.append(button)
+
+            // Messages
+            const message_list = document.createElement('ul')
+            document.body.append(message_list)
+            const bottom_spacer = document.createElement('div')
+            bottom_spacer.style.height = "100px"
+            bottom_spacer.style.display = "block"
+            document.body.append(bottom_spacer)
+            getMessages()
+            scrollSend()
+
+            // Sending messages with click
+            button.addEventListener('click', () => {
+                send_message()
+                getMessages()
+                scrollSend()
+            })
+
+
+            // Updating character count
+            document.addEventListener('keyup', event => {
+                character_count.textContent = input.value.length + "/140"
+                character_count.style.color = text_color
+                if(input.value.length > 140){
+                    character_count.style.color = "red"
+                }
+            })
+
+
+            // Sending messages with enter
+            document.addEventListener('keydown', event => {
+                if(event.code === "Enter") {
+                    send_message()
+                    getMessages()
+                    scrollSend()
+
+                } else {
+                    getMessages()
+                }
+            })
+
+            document.addEventListener('blur', () => {
+                fetch_interval = 9000
+            })
+
+            document.addEventListener('focus', () => {
+                fetch_interval = 500
+            })
+
+
+            function send_message() {
+                /**
+                 * @name send_message
+                 * @description sends a message with less than 140 characters and POSTs it on the server
+                 */
+                if (input.value.length > 0 && 140 >= input.value.length) {
+                    fetch('http://ubeje.xyz:3000/messages', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            sender: sender_name,
+                            message: input.value,
+                            date: new Date(new Date().toString().split('GMT')[0]+' UTC').toISOString().split('.')[0].replace('T',' ')
+                        })
+                    })
+                    input.value = ""
+                    character_count.textContent = "0/140"
+                }
+            }
+
+
+            function isImage(message) {
+                /**
+                 * @name isImage
+                 * @description checks if a message references an image
+                 * @param message that might reference the image
+                 * @return boolean with the result
+                 */
+                for(let i = 0; i < image_types.length; i++) {
+                    if(message.includes(image_types[i])) {
+                        return true
+                    }
+                }
+                return false
+            }
+
+
+            function isWeb(message) {
+                /**
+                 * @name isWeb
+                 * @description checks if a message has a reference to a website
+                 * @param message that might reference a website
+                 * @return boolen with the result
+                 */
+                for (let i = 0; i < website_keywords.length; i++) {
+                    if(message.includes(website_keywords[i])) {
+                        return true
+                    }
+                }
+                return false
+            }
+
+            function getLink(message) {
+
+            }
+
+
+
+            function getMessages() {
+                /**
+                 * @name getMessages
+                 * @description fetches the messages form the server
+                 */
+                fetch('http://ubeje.xyz:3000/messages').then((r) => {
+                    return r.json()
+                }).then((j) => {
+                    if (j.length !== message_count) {
+                        j.slice(message_count, j.length).forEach((mensaje) => {
+                            const unMensaje = document.createElement('li')
+                            const message_container = document.createElement('div')
+                            message_container.style.display = "inline-block"
+                            message_container.style.margin = "20px"
+                            message_container.style.backgroundColor = "black"
+                            message_container.style.boxShadow = "0 0 20px 1px  #ffffff1f"
+                            message_container.style.borderRadius = "40px"
+                            message_container.style.padding = "0 20px 0 20px"
+
+                            const h1 = document.createElement('h1')
+                            const h3 = document.createElement('h4')
+                            const span = document.createElement('span')
+
+                            let msg = null
+                            if (mensaje.message != null) {
+                                if (isImage(mensaje.message.toString())) {
+                                    msg = document.createElement('img')
+                                    msg.src = mensaje.message.toString().replace("\n", "")
+
+                                } else {
+                                    msg = document.createElement('div')
+
+                                    let header = document.createElement('h2')
+                                    span.append(mensaje.message)
+                                    span.style.wordBreak = "break-all"
+                                    header.append(span)
+                                    header.style.color = text_color
+                                    msg.append(header)
+
+                                    if (isWeb(mensaje.message)) {
+
+                                        let link = []
+                                        let words = mensaje.message.split(' ')
+
+                                        for(let i = 0; i < words.length; i++) {
+                                            let word = words[i]
+                                            for(let j = 0; j < website_keywords.length; j++) {
+                                                if(word.includes(website_keywords[j])) {
+                                                    link.push(word)
+                                                }
+                                            }
+                                        }
+
+                                        link = link[0].replace("\n", "")
+                                        fetch('http://ubeje.xyz:3000/messages').then((s) => {
+                                            return s.json()
+                                        }).then((t) => {
+                                            // Fetched ubeje.xyz due to not being able to access other sites
+                                        })
+
+                                    }
+
+                                }
+                            }
+
+
+                            h1.append(mensaje.sender)
+                            h3.append(mensaje.date)
+
+                            h1.style.color = sender_color
+                            h3.style.color = date_color
+
+                            message_container.append(h1)
+                            if (msg != null) {
+
+                                message_container.append(msg)
+                            }
+                            message_container.append(h3)
+
+                            unMensaje.append(message_container)
+                            message_list.append(unMensaje)
+                        })
+                        message_count = j.length
+                    }
+                })
+
+            }
+
+            function waitToSend () {
+                /**
+                 * @name waitToSend
+                 * @description auxiliary function to the async function
+                 * waits to call the scrollSend function
+                 */
+                return new Promise(resolve => {
+                    setTimeout(() => {
+                        resolve('resolved')
+                    }, fetch_interval * 1.5)
+                })
+            }
+
+            async function scrollSend() {
+                /**
+                 * @name scrollSend
+                 * @description sets the scroll at the bottom level after sending a message
+                 * (scroll doesn't change when receiving messages).
+                 */
+                if(scroll_send) {
+                    await waitToSend()
+
+                    window.scroll(0, document.body.scrollHeight)
+                }
+            }
+
+            // Interval of message polling
+            setInterval(function () {
+                getMessages()
+
+            }, fetch_interval)
+
+
+        </script>
+    </body>
+</html>
